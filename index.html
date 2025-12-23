@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Familie VDV Kerst Spel</title>
+    <style>
+        body { background-color: #001529; color: white; text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; overflow: hidden; }
+        canvas { border: 4px solid #d42426; background-color: black; display: block; margin: 10px auto; width: 90vw; max-width: 360px; border-radius: 8px; box-shadow: 0 0 20px rgba(212, 36, 38, 0.5); }
+        .controls { display: grid; grid-template-columns: repeat(3, 65px); grid-template-rows: repeat(2, 65px); gap: 12px; justify-content: center; margin-top: 10px; }
+        .btn { width: 65px; height: 65px; background: #d42426; border: 2px solid #fff; color: white; font-size: 28px; font-weight: bold; border-radius: 15px; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; cursor: pointer; transition: transform 0.1s; }
+        .btn:active { background: #228b22; transform: scale(0.9); }
+        #up { grid-column: 2; }
+        #left { grid-column: 1; }
+        #down { grid-column: 2; }
+        #right { grid-column: 3; }
+        .info-box { font-size: 18px; margin: 5px; color: #ffeb3b; font-weight: bold; }
+        .level-indicator { color: #00ff00; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h2 style="margin: 10px 0;">🎄 Familie VDV Kerst Run 🎅</h2>
+    <div class="level-indicator" id="levelDisplay">Level: 1</div>
+    <div class="info-box" id="scoreDisplay">Punten: 0</div>
+    <canvas id="gameCanvas" width="360" height="144"></canvas>
+    
+    <div class="controls">
+        <div class="btn" id="up" onclick="setDirection(0, -1)">▲</div>
+        <div class="btn" id="left" onclick="setDirection(-1, 0)">◀️</div>
+        <div class="btn" id="down" onclick="setDirection(0, 1)">▼</div>
+        <div class="btn" id="right" onclick="setDirection(1, 0)">▶️</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const size = 18;
+        let score = 0;
+        let currentLevel = 0;
+        let gameActive = true;
+        let currentDir = { dx: 0, dy: 0 };
+        let player = { x: 1, y: 1 };
+        let ghosts = [];
+
+        const levels = [
+            [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+                [1,0,1,1,0,1,0,1,1,0,1,1,1,0,1,0,1,1,0,1],
+                [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,1,1,1,0,1],
+                [1,0,0,0,1,0,1,1,1,0,0,1,1,1,0,1,0,0,0,1],
+                [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+                [1,0,0,0,1,1,1,1,1,0,0,1,1,1,1,1,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],
+                [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,0,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1],
+                [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ]
+        ];
+
+        let currentMap;
+
+        function initLevel() {
+            currentMap = JSON.parse(JSON.stringify(levels[currentLevel]));
+            player = { x: 1, y: 1 };
+            currentDir = { dx: 0, dy: 0 };
+            ghosts = [{ x: 18, y: 5, color: '#00ff00' }];
+            if(currentLevel >= 2) ghosts.push({ x: 18, y: 1, color: '#32cd32' });
+            
+            document.getElementById("levelDisplay").innerText = "Level: " + (currentLevel + 1);
+            gameActive = true;
+        }
+
+        // Toevoeging voor toetsenbord besturing
+        window.addEventListener("keydown", function(e) {
+            if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+                e.preventDefault(); // Voorkom dat de pagina scrollt
+            }
+            if(e.code === "ArrowUp") setDirection(0, -1);
+            if(e.code === "ArrowDown") setDirection(0, 1);
+            if(e.code === "ArrowLeft") setDirection(-1, 0);
+            if(e.code === "ArrowRight") setDirection(1, 0);
+        });
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let dotsLeft = 0;
+
+            for(let y=0; y<currentMap.length; y++) {
+                for(let x=0; x<currentMap[y].length; x++) {
+                    if(currentMap[y][x] === 1) {
+                        ctx.fillStyle = "#228b22";
+                        ctx.fillRect(x*size, y*size, size, size);
+                        ctx.strokeStyle = "#1a661a";
+                        ctx.strokeRect(x*size, y*size, size, size);
+                    } else if(currentMap[y][x] === 0) {
+                        ctx.fillStyle = "#ffcc00";
+                        ctx.beginPath(); ctx.arc(x*size + size/2, y*size + size/2, 3, 0, 7); ctx.fill();
+                        dotsLeft++;
+                    }
+                }
+            }
+
+            ctx.fillStyle = "#d42426";
+            ctx.beginPath(); ctx.arc(player.x*size + size/2, player.y*size + size/2, size/2 - 2, 0, 7); ctx.fill();
+            ctx.fillStyle = "white";
+            ctx.beginPath(); ctx.arc(player.x*size + size/2, player.y*size + 4, 3, 0, 7); ctx.fill();
+
+            ghosts.forEach(g => {
+                ctx.fillStyle = g.color;
+                ctx.fillRect(g.x*size + 2, g.y*size + 2, size-4, size-4);
+                ctx.fillStyle = "yellow";
+                ctx.fillRect(g.x*size + 4, g.y*size + 6, 3, 3);
+                ctx.fillRect(g.x*size + 11, g.y*size + 6, 3, 3);
+            });
+
+            document.getElementById("scoreDisplay").innerText = "Punten: " + score;
+
+            if(dotsLeft === 0 && gameActive) {
+                nextLevel();
+            }
+        }
+
+        function nextLevel() {
+            gameActive = false;
+            if(currentLevel < levels.length - 1) {
+                alert("Goed gedaan Familie VDV! Op naar Level " + (currentLevel + 2) + "!");
+                currentLevel++;
+                initLevel();
+            } else {
+                alert("GEFELICITEERD! 🏆\nFamilie VDV heeft alle kerstcadeaus gered!\nEindscore: " + score);
+                score = 0; currentLevel = 0;
+                initLevel();
+            }
+        }
+
+        function setDirection(dx, dy) {
+            currentDir = { dx, dy };
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            let nX = player.x + currentDir.dx;
+            let nY = player.y + currentDir.dy;
+
+            if(currentMap[nY] && currentMap[nY][nX] !== 1) {
+                player.x = nX;
+                player.y = nY;
+                if(currentMap[player.y][player.x] === 0) {
+                    currentMap[player.y][player.x] = 2;
+                    score += 10;
+                }
+            }
+            checkCollision();
+        }
+
+        function checkCollision() {
+            ghosts.forEach(g => {
+                if(g.x === player.x && g.y === player.y) {
+                    gameActive = false;
+                    alert("Oei! De Grinch was te snel voor Familie VDV.\nProbeer het nog eens!");
+                    score = Math.max(0, score - 50);
+                    initLevel();
+                }
+            });
+        }
+
+        setInterval(() => {
+            if (!gameActive) return;
+            ghosts.forEach(g => {
+                let dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+                let d = dirs[Math.floor(Math.random()*4)];
+                if(currentMap[g.y + d[1]] && currentMap[g.y + d[1]][g.x + d[0]] !== 1) {
+                    g.x += d[0]; g.y += d[1];
+                }
+            });
+            checkCollision();
+        }, 450);
+
+        setInterval(() => {
+            update();
+            draw();
+        }, 220);
+
+        initLevel();
+        draw();
+    </script>
+</body>
+</html>
